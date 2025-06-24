@@ -5,16 +5,24 @@ char *s;
 double build(int l,int r);
 double cal(double a,double b,char c);
 
+
 int main(int argc, char const *argv[])
 {
 	if(argc<=1)
 	{
-		s=(char*)malloc(1000);
-		while(scanf("%s",s)!=EOF)
+		s=(char*)malloc(buf_size+1);
+		if(!s)
 		{
+			printf("malloc failed");
+			return 1;
+		}
+		while(true)
+		{
+			cout<<">";
+			memset(s,'\0',1000);
+			if(scanf("%s",s)==EOF) break;
 			double num=build(0,strlen(s)-1);
 			printf("%.2lf\n",num);
-			memset(s,'\0',1000);
 		}
 	}
 	else
@@ -24,6 +32,7 @@ int main(int argc, char const *argv[])
 		double num=build(0,strlen(s)-1);
 		printf("%.2lf\n",num);
 	}
+	free(s);
 	return 0;
 }
 
