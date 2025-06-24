@@ -4,6 +4,7 @@ char *s;
 
 double build(int l,int r);
 double cal(double a,double b,char c);
+bool checkexit();
 bool check();
 bool checkerror(char num);
 
@@ -34,7 +35,7 @@ int main(int argc, char const *argv[])
 	{
 		cout<<">";
 		memset(s,'\0',1000);
-		if(scanf("%s",s)==EOF||!strcmp(s,"exit")) break;
+		if(scanf("%s",s)==EOF||checkexit()) break;
 		if(!check()) 
 		{
 			printf("invalid input!\n");
@@ -45,6 +46,17 @@ int main(int argc, char const *argv[])
 	}
 	free(s);
 	return 0;
+}
+
+bool checkexit()
+{
+	const char *goodbye[]={"exit","exit()"};
+	const int n=sizeof(goodbye)/sizeof(goodbye[0]);
+	for(int i=0;i<n;i++)
+	{
+		if(!strcmp(s,goodbye[i])) return true;
+	}
+	return false;
 }
 
 bool check()
