@@ -6,134 +6,221 @@
 #include <cctype>
 #include <stdexcept>
 #include <locale>
+#include <cmath>
+#include <iomanip>
 
-// 获取运算符优先级
-int precedence(char op) {
-    if (op == '+' || op == '-') return 1;
-    if (op == '*' || op == '/') return 2;
+//---- Parsing & Evaluation Helpers ----//
+
+int precedence(const std::string &op) {
+    if (op == "+" || op == "-")     return 1;
+    if (op == "*" || op == "/" || op == "%") return 2;
+    if (op == "^")                  return 3;
     return 0;
 }
 
-// 将中缀表达式转换为后缀（逆波兰）表达式
+bool isRightAssociative(const std::string &op) {
+    return op == "^";
+}
+
+// Convert infix to RPN using the Shunting-Yard algorithm
 std::vector<std::string> infixToRPN(const std::string &expr) {
     std::vector<std::string> output;
-    std::stack<char> ops;
+    std::stack<std::string> ops;
     std::istringstream in(expr);
     char c;
 
     while (in >> std::noskipws >> c) {
-        if (std::isspace(c)) {
-            continue;
-        }
-        // 数字或小数点
-        if (std::isdigit(c) || c == '.') {
-            std::string num(1, c);
-            // 读取完整数字
-            while (in.peek() != EOF && (std::isdigit(in.peek()) || in.peek() == '.')) {
+        if (std::isspace(c)) continue;
+
+        // --- Hex literal (0x...) ---
+        if (c == '0' && (in.peek()=='x' || in.peek()=='X')) {
+            std::string num = "0";
+            num += static_cast<char>(in.get()); // 'x' or 'X'
+            while (in.peek() != EOF && std::isxdigit(in.peek())) {
                 num += static_cast<char>(in.get());
             }
             output.push_back(num);
         }
-        // 左括号
+        // --- Decimal number or decimal point ---
+        else if (std::isdigit(c) || c == '.') {
+            std::string num(1,c);
+            while (in.peek() != EOF && (std::isdigit(in.peek())|| in.peek()=='.')) {
+                num += static_cast<char>(in.get());
+            }
+            output.push_back(num);
+        }
+        // --- Function name (sin, cos, tan) ---
+        else if (std::isalpha(c)) {
+            std::string fn(1,c);
+            while (in.peek()!=EOF && std::isalpha(in.peek())) {
+                fn += static_cast<char>(in.get());
+            }
+            ops.push(fn);
+        }
+        // --- Parentheses ---
         else if (c == '(') {
-            ops.push(c);
-        }
-        // 右括号
-        else if (c == ')') {
-            while (!ops.empty() && ops.top() != '(') {
-                output.push_back(std::string(1, ops.top()));
-                ops.pop();
+            ops.push("(");
+        } else if (c == ')') {
+            while (!ops.empty() && ops.top() != "(") {
+                output.push_back(ops.top()); ops.pop();
             }
-            if (ops.empty()) throw std::runtime_error("括号不匹配");
-            ops.pop(); // 弹出左括号
-        }
-        // 操作符
-        else if (c=='+' || c=='-' || c=='*' || c=='/') {
-            // 处理一元负号：如果当前是 '-' 且前一输出是操作符或栈空，视为负号的一部分
-            if (c == '-') {
-                bool unary = output.empty() ||
-                             (!output.empty() && output.back().size() == 1 && std::string("+-*/").find(output.back()) != std::string::npos);
-                if (unary) {
-                    // 把负号当作数字开头
-                    std::string num("-");
-                    while (in.peek() != EOF && (std::isdigit(in.peek()) || in.peek() == '.')) {
-                        num += static_cast<char>(in.get());
-                    }
-                    output.push_back(num);
-                    continue;
-                }
+            if (ops.empty()) throw std::runtime_error("Mismatched parentheses");
+            ops.pop(); // remove "("
+            // if a function is on top, pop it too
+            if (!ops.empty() && std::isalpha(ops.top()[0])) {
+                output.push_back(ops.top()); ops.pop();
             }
-            // 普通二元运算符
-            while (!ops.empty() && precedence(ops.top()) >= precedence(c)) {
-                output.push_back(std::string(1, ops.top()));
-                ops.pop();
-            }
-            ops.push(c);
         }
+        // --- Operator ---
         else {
-            throw std::runtime_error(std::string("未知字符：") + c);
+            std::string op(1,c);
+            if (std::string("+-*/%^").find(c) != std::string::npos) {
+                // unary minus
+                if (c=='-') {
+                    bool unary = output.empty() ||
+                                 ops.empty() ||
+                                 ops.top()=="(" ||
+                                 (precedence(ops.top())>0 && std::string("+-*/%^").find(ops.top())!=std::string::npos);
+                    if (unary) {
+                        std::string num("-");
+                        while (in.peek()!=EOF && (std::isdigit(in.peek())||in.peek()=='.')) {
+                            num += static_cast<char>(in.get());
+                        }
+                        output.push_back(num);
+                        continue;
+                    }
+                }
+                // pop higher-prec or equal+left-assoc ops
+                while (!ops.empty() &&
+                      ops.top()!="(" &&
+                      ((precedence(ops.top())>precedence(op)) ||
+                       (precedence(ops.top())==precedence(op) && !isRightAssociative(op)))
+                      ) {
+                    output.push_back(ops.top()); ops.pop();
+                }
+                ops.push(op);
+            }
+            else {
+                throw std::runtime_error(std::string("Unknown character: ")+c);
+            }
         }
     }
 
-    // 清空剩余运算符
+    // drain operators
     while (!ops.empty()) {
-        if (ops.top() == '(' || ops.top() == ')') throw std::runtime_error("括号不匹配");
-        output.push_back(std::string(1, ops.top()));
-        ops.pop();
+        if (ops.top()=="("||ops.top()==")") throw std::runtime_error("Mismatched parentheses");
+        output.push_back(ops.top()); ops.pop();
     }
     return output;
 }
 
-// 计算逆波兰表达式
+// Evaluate the RPN token list
 double evalRPN(const std::vector<std::string> &tokens) {
     std::stack<double> st;
-    for (const auto &tok : tokens) {
-        if (tok == "+" || tok == "-" || tok == "*" || tok == "/") {
-            if (st.size() < 2) throw std::runtime_error("表达式错误");
-            double b = st.top(); st.pop();
-            double a = st.top(); st.pop();
-            if (tok == "+") st.push(a + b);
-            else if (tok == "-") st.push(a - b);
-            else if (tok == "*") st.push(a * b);
-            else if (tok == "/") {
-                if (b == 0) throw std::runtime_error("除以零错误");
-                st.push(a / b);
+    for (auto &tok : tokens) {
+        // operators
+        if (tok=="+"||tok=="-"||tok=="*"||tok=="/"||tok=="%"||tok=="^") {
+            if (st.size()<2) throw std::runtime_error("Invalid expression");
+            double b=st.top(); st.pop();
+            double a=st.top(); st.pop();
+            if      (tok=="+") st.push(a+b);
+            else if (tok=="-") st.push(a-b);
+            else if (tok=="*") st.push(a*b);
+            else if (tok=="/") {
+                if (b==0) throw std::runtime_error("Division by zero");
+                st.push(a/b);
             }
-        } else {
+            else if (tok=="%") {
+                if (b==0) throw std::runtime_error("Modulo by zero");
+                st.push(std::fmod(a,b));
+            }
+            else if (tok=="^") {
+                st.push(std::pow(a,b));
+            }
+        }
+        // functions
+        else if (tok=="sin"||tok=="cos"||tok=="tan") {
+            if (st.empty()) throw std::runtime_error("Invalid expression");
+            double v=st.top(); st.pop();
+            if      (tok=="sin") st.push(std::sin(v));
+            else if (tok=="cos") st.push(std::cos(v));
+            else if (tok=="tan") st.push(std::tan(v));
+        }
+        // hex literal?
+        else if (tok.size()>2 && tok[0]=='0' && (tok[1]=='x'||tok[1]=='X')) {
+            long long val = std::stoll(tok,nullptr,16);
+            st.push(static_cast<double>(val));
+        }
+        // decimal number
+        else {
             st.push(std::stod(tok));
         }
     }
-    if (st.size() != 1) throw std::runtime_error("表达式错误");
+    if (st.size()!=1) throw std::runtime_error("Invalid expression");
     return st.top();
 }
 
-// 对外接口：计算字符串表达式
+// Evaluate a string expression
 double evaluate(const std::string &expr) {
     auto rpn = infixToRPN(expr);
     return evalRPN(rpn);
 }
 
-int main() {
-    // 设置英国本地化输出（千位以逗号分组，小数点为 .）
+//---- Main Interactive Loop ----//
+
+enum Base { DEC, HEX };
+
+int main(){
+    Base outBase = DEC;
     try {
-        std::locale gb("en_GB.UTF-8");
-        std::cout.imbue(gb);
-    } catch (...) {
-        // 环境不支持时忽略
-    }
+        std::locale uk("en_GB.UTF-8");
+        std::cout.imbue(uk);
+    } catch(...) {}
+
+    std::cout << "UK CLI Calculator\n"
+              << "  Supports + - * / % ^, sin(x), cos(x), tan(x), 0xHEX literals\n"
+              << "  Commands:  base dec   base hex   exit/quit\n\n";
 
     std::string line;
-    std::cout << "英国 CLI 计算器 (输入 exit 或 quit 退出)\n";
     while (true) {
         std::cout << "calc> ";
         if (!std::getline(std::cin, line)) break;
-        if (line == "exit" || line == "quit") break;
+        if (line=="exit"||line=="quit") break;
+
+        // handle base command
+        if (line.rfind("base ",0)==0) {
+            std::string arg = line.substr(5);
+            if (arg=="dec") {
+                outBase = DEC;
+                std::cout << "Output base: decimal\n";
+            }
+            else if (arg=="hex") {
+                outBase = HEX;
+                std::cout << "Output base: hexadecimal\n";
+            }
+            else {
+                std::cout << "Unknown base. Use 'base dec' or 'base hex'.\n";
+            }
+            continue;
+        }
+
         if (line.empty()) continue;
+
         try {
             double result = evaluate(line);
-            std::cout << result << "\n";
-        } catch (const std::exception &e) {
-            std::cout << "错误: " << e.what() << "\n";
+            // print in chosen base
+            if (outBase==DEC) {
+                std::cout << result << "\n";
+            } else {
+                // hex: show integer part only
+                long long iv = static_cast<long long>(result);
+                std::ostringstream oss;
+                oss << "0x" << std::uppercase << std::hex << iv;
+                std::cout << oss.str() << std::dec << "\n";
+            }
+        }
+        catch(const std::exception &e) {
+            std::cout << "Error: " << e.what() << "\n";
         }
     }
     return 0;
