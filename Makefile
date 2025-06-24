@@ -31,6 +31,11 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 # 包含自动生成的依赖
 -include $(DEPS)
 
+.PHONY: run
+run: all
+	@echo "Running $(TARGET)..."
+	@$(BINDIR)/$(TARGET)
+	
 # 清理构建产物
 .PHONY: clean
 clean:
