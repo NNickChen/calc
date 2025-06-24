@@ -36,7 +36,11 @@ int main(int argc, char const *argv[])
 	{
 		cout<<">";
 		memset(s,'\0',1000);
-		if(scanf("%s",s)==EOF||checkexit()) break;
+		if(scanf("%s",s)==EOF||checkexit()) 
+		{
+			cout<<"Goodbye!\n";
+			break;
+		}
 		if(!check()) 
 		{
 			printf("invalid input!\n");
