@@ -1,31 +1,48 @@
-# Makefile for calc program
+# 编译器与选项
+CXX      := g++
+CXXFLAGS := -std=c++17 -Wall
 
-# Compiler and flags
-CXX := g++
-CXXFLAGS := -Wall -O2
+# 源、目标、输出目录
+SRCDIR   := src
+INCDIR   := include
+OBJDIR   := build/obj
+BINDIR   := build/bin
 
-# Source files
-SRCS := calc.cpp logic.cpp
-OBJS := $(SRCS:.cpp=.o)
+SRCS     := $(wildcard $(SRCDIR)/*.cpp)
+OBJS     := $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.o,$(SRCS))
+DEPS     := $(OBJS:.o=.d)
 
-# Output
-TARGET := build/calc
+TARGET   := calculator
 
-# Default rule
-all: $(TARGET)
+# 默认目标
+.PHONY: all
+all: $(BINDIR)/$(TARGET)
 
-# Linking
-$(TARGET): $(OBJS)
+# 链接可执行文件
+$(BINDIR)/$(TARGET): $(OBJS)
+	@mkdir -p $(BINDIR)
+	$(CXX) $^ -o $@
+
+# 编译 .cpp -> .o，并生成依赖文件 .d
+$(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -o $@ $^
+	$(CXX) $(CXXFLAGS) -I$(INCDIR) -c $< -o $@
 
-# Compilation
-%.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+# 包含自动生成的依赖
+-include $(DEPS)
 
-# Clean rule
+# 清理构建产物
+.PHONY: clean
 clean:
-	rm -f *.o
-	rm -rf build
+	rm -rf build/
 
-.PHONY: all clean
+# 安装（可选）
+.PHONY: install
+install: all
+	@echo "Installing..."
+	# cp $(BINDIR)/$(TARGET) /usr/local/bin/
+
+# 伪目标，避免文件同名冲突
+.PHONY: distclean
+distclean: clean
+	rm -f $(TARGET)
