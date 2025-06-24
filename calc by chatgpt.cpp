@@ -166,60 +166,90 @@ double evaluate(const std::string &expr) {
     return evalRPN(rpn);
 }
 
-//---- Main Interactive Loop ----//
+//---- Main Interactive & CLI Loop ----//
 
 enum Base { DEC, HEX };
 
-int main(){
+int main(int argc, char* argv[]) {
     Base outBase = DEC;
     try {
         std::locale uk("en_GB.UTF-8");
         std::cout.imbue(uk);
     } catch(...) {}
 
+    // If arguments provided, evaluate and exit or show help
+    if (argc > 1) {
+        std::string first = argv[1];
+        if (first == "--help" || first == "-h") {
+            std::cout << "Usage:\n"
+                      << "  calc [--help] [expression]\n\n"
+                      << "Without expression, starts interactive REPL.\n"
+                      << "In REPL: type expressions or commands:\n"
+                      << "  base dec    Switch output to decimal\n"
+                      << "  base hex    Switch output to hexadecimal\n"
+                      << "  exit, quit  Quit the calculator\n";
+            return 0;
+        }
+        // Combine all args into one expression
+        std::string expr;
+        for (int i = 1; i < argc; ++i) {
+            expr += argv[i];
+            if (i + 1 < argc) expr += ' ';
+        }
+        try {
+            double result = evaluate(expr);
+            // always decimal for CLI invocation
+            std::cout << result << '\n';
+            return 0;
+        } catch (const std::exception &e) {
+            std::cerr << "Error: " << e.what() << '\n';
+            return 1;
+        }
+    }
+
+    // Interactive REPL
     std::cout << "UK CLI Calculator\n"
               << "  Supports + - * / % ^, sin(x), cos(x), tan(x), 0xHEX literals\n"
-              << "  Commands:  base dec   base hex   exit/quit\n\n";
+              << "  Commands: base dec, base hex, exit/quit, --help\n\n";
 
     std::string line;
     while (true) {
         std::cout << "calc> ";
         if (!std::getline(std::cin, line)) break;
-        if (line=="exit"||line=="quit") break;
-
-        // handle base command
-        if (line.rfind("base ",0)==0) {
+        if (line == "exit" || line == "quit") break;
+        if (line == "--help" || line == "-h") {
+            std::cout << "Commands:\n"
+                      << "  base dec    Switch output to decimal\n"
+                      << "  base hex    Switch output to hexadecimal\n"
+                      << "  exit, quit  Quit the calculator\n";
+            continue;
+        }
+        if (line.rfind("base ", 0) == 0) {
             std::string arg = line.substr(5);
-            if (arg=="dec") {
+            if (arg == "dec") {
                 outBase = DEC;
                 std::cout << "Output base: decimal\n";
-            }
-            else if (arg=="hex") {
+            } else if (arg == "hex") {
                 outBase = HEX;
                 std::cout << "Output base: hexadecimal\n";
-            }
-            else {
+            } else {
                 std::cout << "Unknown base. Use 'base dec' or 'base hex'.\n";
             }
             continue;
         }
-
         if (line.empty()) continue;
 
         try {
             double result = evaluate(line);
-            // print in chosen base
-            if (outBase==DEC) {
+            if (outBase == DEC) {
                 std::cout << result << "\n";
             } else {
-                // hex: show integer part only
                 long long iv = static_cast<long long>(result);
                 std::ostringstream oss;
                 oss << "0x" << std::uppercase << std::hex << iv;
                 std::cout << oss.str() << std::dec << "\n";
             }
-        }
-        catch(const std::exception &e) {
+        } catch (const std::exception &e) {
             std::cout << "Error: " << e.what() << "\n";
         }
     }
