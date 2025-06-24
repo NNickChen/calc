@@ -4,7 +4,8 @@ char *s;
 
 double build(int l,int r);
 double cal(double a,double b,char c);
-
+bool check();
+bool checkerror(char num);
 
 int main(int argc, char const *argv[])
 {
@@ -13,6 +14,11 @@ int main(int argc, char const *argv[])
 		for(int i=1;i<argc;i++)
 		{
 			s=(char*)argv[i];
+			if(!check()) 
+			{
+				printf("invalid input!\n");
+				continue;
+			}
 			double num=build(0,strlen(s)-1);
 			printf("%.2lf\n",num);
 		}
@@ -29,11 +35,36 @@ int main(int argc, char const *argv[])
 		cout<<">";
 		memset(s,'\0',1000);
 		if(scanf("%s",s)==EOF||!strcmp(s,"exit")) break;
+		if(!check()) 
+		{
+			printf("invalid input!\n");
+			continue;
+		}
 		double num=build(0,strlen(s)-1);
 		printf("%.2lf\n",num);
 	}
 	free(s);
 	return 0;
+}
+
+bool check()
+{
+	for(int i=0;i<strlen(s);i++)
+	{
+		if(!checkerror(s[i])) return false; //one char is invalid
+	}
+	return true; //valid
+}
+
+bool checkerror(char num)
+{
+	const char *valid="+-*/^%()."; //operations and the point
+	if(num>='0'&&num<='9') return true;  //0~9
+	for(int i=0;i<strlen(valid);i++)
+	{
+		if(num==valid[i]) return true; 
+	}
+	return false; //invalid
 }
 
 double build(int l,int r)
