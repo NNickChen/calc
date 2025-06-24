@@ -20,7 +20,7 @@ int main(int argc, char const *argv[])
 		{
 			cout<<">";
 			memset(s,'\0',1000);
-			if(scanf("%s",s)==EOF) break;
+			if(scanf("%s",s)==EOF||!strcmp(s,"exit")) break;
 			double num=build(0,strlen(s)-1);
 			printf("%.2lf\n",num);
 		}
