@@ -32,7 +32,7 @@ std::vector<std::string> infixToRPN(const std::string &expr) {
     while (in >> std::noskipws >> c) {
         if (std::isspace(c)) continue;
 
-        // --- Hex literal (0x...) ---
+        // Hex literal (0x...)
         if (c == '0' && (in.peek()=='x' || in.peek()=='X')) {
             std::string num = "0";
             num += static_cast<char>(in.get()); // 'x' or 'X'
@@ -41,7 +41,7 @@ std::vector<std::string> infixToRPN(const std::string &expr) {
             }
             output.push_back(num);
         }
-        // --- Decimal number or decimal point ---
+        // Decimal number or decimal point
         else if (std::isdigit(c) || c == '.') {
             std::string num(1,c);
             while (in.peek() != EOF && (std::isdigit(in.peek())|| in.peek()=='.')) {
@@ -49,7 +49,7 @@ std::vector<std::string> infixToRPN(const std::string &expr) {
             }
             output.push_back(num);
         }
-        // --- Function name (sin, cos, tan) ---
+        // Function name (sin, cos, tan)
         else if (std::isalpha(c)) {
             std::string fn(1,c);
             while (in.peek()!=EOF && std::isalpha(in.peek())) {
@@ -57,7 +57,7 @@ std::vector<std::string> infixToRPN(const std::string &expr) {
             }
             ops.push(fn);
         }
-        // --- Parentheses ---
+        // Parentheses
         else if (c == '(') {
             ops.push("(");
         } else if (c == ')') {
@@ -65,21 +65,18 @@ std::vector<std::string> infixToRPN(const std::string &expr) {
                 output.push_back(ops.top()); ops.pop();
             }
             if (ops.empty()) throw std::runtime_error("Mismatched parentheses");
-            ops.pop(); // remove "("
-            // if a function is on top, pop it too
+            ops.pop(); // remove '('
             if (!ops.empty() && std::isalpha(ops.top()[0])) {
                 output.push_back(ops.top()); ops.pop();
             }
         }
-        // --- Operator ---
+        // Operator
         else {
             std::string op(1,c);
             if (std::string("+-*/%^").find(c) != std::string::npos) {
-                // unary minus
+                // Unary minus
                 if (c=='-') {
-                    bool unary = output.empty() ||
-                                 ops.empty() ||
-                                 ops.top()=="(" ||
+                    bool unary = output.empty() || ops.empty() || ops.top()=="(" ||
                                  (precedence(ops.top())>0 && std::string("+-*/%^").find(ops.top())!=std::string::npos);
                     if (unary) {
                         std::string num("-");
@@ -90,23 +87,19 @@ std::vector<std::string> infixToRPN(const std::string &expr) {
                         continue;
                     }
                 }
-                // pop higher-prec or equal+left-assoc ops
-                while (!ops.empty() &&
-                      ops.top()!="(" &&
+                while (!ops.empty() && ops.top()!="(" &&
                       ((precedence(ops.top())>precedence(op)) ||
-                       (precedence(ops.top())==precedence(op) && !isRightAssociative(op)))
-                      ) {
+                       (precedence(ops.top())==precedence(op) && !isRightAssociative(op)))) {
                     output.push_back(ops.top()); ops.pop();
                 }
                 ops.push(op);
-            }
-            else {
+            } else {
                 throw std::runtime_error(std::string("Unknown character: ")+c);
             }
         }
     }
 
-    // drain operators
+    // Drain remaining operators
     while (!ops.empty()) {
         if (ops.top()=="("||ops.top()==")") throw std::runtime_error("Mismatched parentheses");
         output.push_back(ops.top()); ops.pop();
@@ -114,11 +107,10 @@ std::vector<std::string> infixToRPN(const std::string &expr) {
     return output;
 }
 
-// Evaluate the RPN token list
+// Evaluate RPN token list
 double evalRPN(const std::vector<std::string> &tokens) {
     std::stack<double> st;
     for (auto &tok : tokens) {
-        // operators
         if (tok=="+"||tok=="-"||tok=="*"||tok=="/"||tok=="%"||tok=="^") {
             if (st.size()<2) throw std::runtime_error("Invalid expression");
             double b=st.top(); st.pop();
@@ -126,19 +118,10 @@ double evalRPN(const std::vector<std::string> &tokens) {
             if      (tok=="+") st.push(a+b);
             else if (tok=="-") st.push(a-b);
             else if (tok=="*") st.push(a*b);
-            else if (tok=="/") {
-                if (b==0) throw std::runtime_error("Division by zero");
-                st.push(a/b);
-            }
-            else if (tok=="%") {
-                if (b==0) throw std::runtime_error("Modulo by zero");
-                st.push(std::fmod(a,b));
-            }
-            else if (tok=="^") {
-                st.push(std::pow(a,b));
-            }
+            else if (tok=="/") { if (b==0) throw std::runtime_error("Division by zero"); st.push(a/b); }
+            else if (tok=="%") { if (b==0) throw std::runtime_error("Modulo by zero"); st.push(std::fmod(a,b)); }
+            else if (tok=="^")  st.push(std::pow(a,b));
         }
-        // functions
         else if (tok=="sin"||tok=="cos"||tok=="tan") {
             if (st.empty()) throw std::runtime_error("Invalid expression");
             double v=st.top(); st.pop();
@@ -146,12 +129,10 @@ double evalRPN(const std::vector<std::string> &tokens) {
             else if (tok=="cos") st.push(std::cos(v));
             else if (tok=="tan") st.push(std::tan(v));
         }
-        // hex literal?
         else if (tok.size()>2 && tok[0]=='0' && (tok[1]=='x'||tok[1]=='X')) {
             long long val = std::stoll(tok,nullptr,16);
             st.push(static_cast<double>(val));
         }
-        // decimal number
         else {
             st.push(std::stod(tok));
         }
@@ -172,39 +153,30 @@ enum Base { DEC, HEX };
 
 int main(int argc, char* argv[]) {
     Base outBase = DEC;
-    try {
-        std::locale uk("en_GB.UTF-8");
-        std::cout.imbue(uk);
-    } catch(...) {}
+    try { std::locale uk("en_GB.UTF-8"); std::cout.imbue(uk); } catch(...) {}
 
-    // If arguments provided, evaluate and exit or show help
+    // CLI mode: handle --help or multiple expressions
     if (argc > 1) {
         std::string first = argv[1];
         if (first == "--help" || first == "-h") {
             std::cout << "Usage:\n"
-                      << "  calc [--help] [expression]\n\n"
-                      << "Without expression, starts interactive REPL.\n"
-                      << "In REPL: type expressions or commands:\n"
-                      << "  base dec    Switch output to decimal\n"
-                      << "  base hex    Switch output to hexadecimal\n"
-                      << "  exit, quit  Quit the calculator\n";
+                      << "  calc [--help] [expr1] [expr2] ...\n\n"
+                      << "Evaluate each expression passed as an argument.\n"
+                      << "Without expressions, starts interactive REPL.\n";
             return 0;
         }
-        // Combine all args into one expression
-        std::string expr;
+        bool errorOccurred = false;
         for (int i = 1; i < argc; ++i) {
-            expr += argv[i];
-            if (i + 1 < argc) expr += ' ';
+            std::string expr = argv[i];
+            try {
+                double result = evaluate(expr);
+                std::cout << expr << " = " << result << '\n';
+            } catch (const std::exception &e) {
+                std::cerr << "Error in '" << expr << "': " << e.what() << '\n';
+                errorOccurred = true;
+            }
         }
-        try {
-            double result = evaluate(expr);
-            // always decimal for CLI invocation
-            std::cout << result << '\n';
-            return 0;
-        } catch (const std::exception &e) {
-            std::cerr << "Error: " << e.what() << '\n';
-            return 1;
-        }
+        return errorOccurred ? 1 : 0;
     }
 
     // Interactive REPL
@@ -226,15 +198,9 @@ int main(int argc, char* argv[]) {
         }
         if (line.rfind("base ", 0) == 0) {
             std::string arg = line.substr(5);
-            if (arg == "dec") {
-                outBase = DEC;
-                std::cout << "Output base: decimal\n";
-            } else if (arg == "hex") {
-                outBase = HEX;
-                std::cout << "Output base: hexadecimal\n";
-            } else {
-                std::cout << "Unknown base. Use 'base dec' or 'base hex'.\n";
-            }
+            if (arg == "dec") { outBase = DEC; std::cout << "Output base: decimal\n"; }
+            else if (arg == "hex") { outBase = HEX; std::cout << "Output base: hexadecimal\n"; }
+            else { std::cout << "Unknown base. Use 'base dec' or 'base hex'.\n"; }
             continue;
         }
         if (line.empty()) continue;
