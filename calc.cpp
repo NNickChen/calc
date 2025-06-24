@@ -1,6 +1,7 @@
 #include "calc.hpp"
 
 char *s;
+bool debug=false;
 
 double build(int l,int r);
 double cal(double a,double b,char c);
@@ -50,8 +51,9 @@ int main(int argc, char const *argv[])
 
 bool checkexit()
 {
-	const char *goodbye[]={"exit","exit()"};
+	const char *goodbye[]={"exit","exit()","goodbye"};
 	const int n=sizeof(goodbye)/sizeof(goodbye[0]);
+	if(debug) cout<<n<<endl;
 	for(int i=0;i<n;i++)
 	{
 		if(!strcmp(s,goodbye[i])) return true;
