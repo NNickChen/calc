@@ -5,6 +5,7 @@ bool debug=false;
 
 double build(int l,int r);
 double cal(double a,double b,char c);
+void commands();
 bool checkexit();
 bool check();
 bool checkerror(char num);
@@ -36,21 +37,28 @@ int main(int argc, char const *argv[])
 	{
 		cout<<">";
 		memset(s,'\0',1000);
-		if(scanf("%s",s)==EOF||checkexit()) 
+		if(scanf("%s",s)==EOF) break;
+		commands();
+	}
+	free(s);
+	return 0;
+}
+
+void commands()
+{
+	if(scanf("%s",s)==EOF||checkexit()) 
 		{
 			cout<<"Goodbye!\n";
 			break;
 		}
-		if(!check()) 
-		{
-			printf("invalid input!\n");
-			continue;
-		}
-		double num=build(0,strlen(s)-1);
-		printf("%.2lf\n",num);
+	if(!check()) 
+	{
+		printf("invalid input!\n");
+		continue;
 	}
-	free(s);
-	return 0;
+	double num=build(0,strlen(s)-1);
+	printf("%.2lf\n",num);
+	return;
 }
 
 bool checkexit()
