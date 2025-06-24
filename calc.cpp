@@ -8,27 +8,27 @@ double cal(double a,double b,char c);
 
 int main(int argc, char const *argv[])
 {
-	if(argc<=1)
+	if(argc>1)
 	{
-		s=(char*)malloc(buf_size+1);
-		if(!s)
+		for(int i=1;i<argc;i++)
 		{
-			printf("malloc failed");
-			return 1;
-		}
-		while(true)
-		{
-			cout<<">";
-			memset(s,'\0',1000);
-			if(scanf("%s",s)==EOF||!strcmp(s,"exit")) break;
+			s=(char*)argv[i];
 			double num=build(0,strlen(s)-1);
 			printf("%.2lf\n",num);
 		}
 	}
-	else
-	for(int i=1;i<argc;i++)
+
+	s=(char*)malloc(buf_size+1);
+	if(!s)
 	{
-		s=(char*)argv[i];
+		printf("malloc failed");
+		return 1;
+	}
+	while(true)
+	{
+		cout<<">";
+		memset(s,'\0',1000);
+		if(scanf("%s",s)==EOF||!strcmp(s,"exit")) break;
 		double num=build(0,strlen(s)-1);
 		printf("%.2lf\n",num);
 	}
