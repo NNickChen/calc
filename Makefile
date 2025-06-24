@@ -1,6 +1,6 @@
 # 编译器与选项
 CXX      := g++
-CXXFLAGS := -std=c++17 -Wall
+CXXFLAGS := -Wall -O2
 
 # 源、目标、输出目录
 SRCDIR   := src
