@@ -1,107 +1,84 @@
 #include "calc.hpp"
+#include <cctype>
+#include <cmath>
+#include <iomanip>
+#include <iostream>
 
-char *s;
-bool debug=false;
+using namespace std;
 
-double build(int l,int r);
-double cal(double a,double b,char c);
-bool checkexit();
-bool check();
-bool checkerror(char num);
+string s;
+bool hasError = false;
+int calls = 0;
 
-int main(int argc, char const *argv[])
-{
-	if(argc>1)
-	{
-		for(int i=1;i<argc;i++)
-		{
-			s=(char*)argv[i];
-			if(!check()) 
-			{
-				printf("invalid input!\n");
-				continue;
-			}
-			double num=build(0,strlen(s)-1);
-			printf("%.2lf\n",num);
-		}
-	}
-
-	s=(char*)malloc(buf_size+1);
-	if(!s)
-	{
-		printf("malloc failed");
-		return 1;
-	}
-	while(true)
-	{
-		cout<<">";
-		memset(s,'\0',1000);
-		if(scanf("%s",s)==EOF||checkexit()) 
-		{
-			cout<<"Goodbye!\n";
-			break;
-		}
-		if(!check()) 
-		{
-			printf("invalid input!\n");
-			continue;
-		}
-		double num=build(0,strlen(s)-1);
-		printf("%.2lf\n",num);
-	}
-	free(s);
-	return 0;
+// 检查字符和括号是否正确，详细的运算格式由 build() 检查。
+bool check() {
+    if (s.empty()) return false;
+    int brackets = 0;
+    for (char c : s) {
+        if (!isdigit((unsigned char)c) && c != '+' && c != '-' &&
+            c != '*' && c != '/' && c != '%' && c != '^' &&
+            c != '.' && c != '(' && c != ')') return false;
+        if (c == '(') brackets++;
+        if (c == ')') brackets--;
+        if (brackets < 0 || brackets > 100) return false;
+    }
+    return brackets == 0;
 }
 
-bool checkexit()
-{
-	const char *goodbye[]={"exit","exit()","goodbye"};
-	const int n=sizeof(goodbye)/sizeof(goodbye[0]);
-	if(debug) cout<<n<<endl;
-	for(int i=0;i<n;i++)
-	{
-		if(!strcmp(s,goodbye[i])) return true;
-	}
-	return false;
+// 去掉空格，避免把 "1 2" 错误地当成 12。
+bool setExpression(const string& input) {
+    s.clear();
+    bool hadSpace = false;
+    for (char c : input) {
+        if (isspace((unsigned char)c)) {
+            hadSpace = true;
+            continue;
+        }
+        if (hadSpace && !s.empty() &&
+            (isdigit((unsigned char)c) || c == '.') &&
+            (isdigit((unsigned char)s.back()) || s.back() == '.')) {
+            return false;
+        }
+        s += c;
+        hadSpace = false;
+    }
+    return true;
 }
 
-bool check()
-{
-	for(int i=0;i<strlen(s);i++)
-	{
-		if(!checkerror(s[i])) return false; //one char is invalid
-	}
-	return true; //valid
+bool calculate(const string& input) {
+    if (!setExpression(input) || !check()) {
+        cout << "invalid input!\n";
+        return false;
+    }
+    hasError = false;
+    calls = 0;
+    double answer = build(0, (int)s.size() - 1);
+    if (hasError || !isfinite(answer)) {
+        cout << "invalid input!\n";
+        return false;
+    }
+    cout << fixed << setprecision(2) << answer << '\n';
+    return true;
 }
 
-bool checkerror(char num)
-{
-	const char *valid="+-*/^%()."; //operations and the point
-	if(num>='0'&&num<='9') return true;  //0~9
-	for(int i=0;i<strlen(valid);i++)
-	{
-		if(num==valid[i]) return true; 
-	}
-	return false; //invalid
-}
+int main(int argc, char* argv[]) {
+    if (argc > 1) {
+        bool allOk = true;
+        for (int i = 1; i < argc; i++) {
+            if (!calculate(argv[i])) allOk = false;
+        }
+        return allOk ? 0 : 1; // 命令行计算结束后直接退出
+    }
 
-double build(int l,int r)
-{
-	int t=find(l,r);
-	if(t!=-1) return cal(build(l,t-1),build(t+1,r),s[t]);
-	else if(s[l]=='(') return build(l+1,r-1);
-	else return number(l,r);
-	return -1;
-}
-
-double cal(double a,double b,char c)
-{
-	// cout<<"a="<<a<<" b="<<b<<endl;
-	double ans=-1;
-	if(c=='+') ans=a+b;
-	else if(c=='-') ans=a-b;
-	else if(c=='*') ans=a*b;
-	else if(c=='^') ans=pow(a,b);
-	else ans=a/b;
-	return ans;
+    string input;
+    while (true) {
+        cout << ">" << flush;
+        if (!getline(cin, input)) break;
+        string command;
+        for (char c : input) if (!isspace((unsigned char)c)) command += c;
+        if (command == "exit" || command == "exit()" || command == "goodbye") break;
+        calculate(input);
+    }
+    cout << "Goodbye!\n";
+    return 0;
 }
