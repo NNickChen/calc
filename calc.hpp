@@ -1,8 +1,9 @@
-#include"bits/stdc++.h"
-using namespace std;
+#ifndef CALC_HPP
+#define CALC_HPP
 
-extern char *s;
-const int buf_size=1000;
+#include <string>
 
-double number(int l,int r);
-double find(int l,int r);
+// Evaluate an arithmetic expression, or throw std::invalid_argument for bad input.
+double evaluate(const std::string& expression);
+
+#endif
