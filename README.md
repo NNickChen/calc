@@ -1,44 +1,49 @@
-# calc
+# C++ 简易计算器（初二作业版）
 
-A command-line arithmetic calculator written in C++11.
+这个程序可以计算加、减、乘、除、取余（`%`）、乘方（`^`）和带括号的算式。
+尽量沿用原来的函数：`check()` 检查算式、`find()` 找运算符、`build()` 递归计算、`number()` 读取数字。
 
-## Build
+## 编译和运行
 
-```sh
+```bash
 make
-```
-
-## Usage
-
-Evaluate one or more expressions and exit:
-
-```sh
-./build/calc '1 + 2 * 3' '2^3^2' '6%4'
-# 7.00
-# 512.00
-# 2.00
-```
-
-Run the interactive calculator with no arguments:
-
-```sh
 ./build/calc
->1 + 2
-3.00
+```
+
+输入算式，例如：
+
+```text
+>1+2*3
+7.00
+>(1+2)*3
+9.00
+>-3+5
+2.00
 >exit
 Goodbye!
 ```
 
-The interactive mode accepts `exit`, `exit()`, or `goodbye` (with optional whitespace) to quit. End-of-file also exits.
+也可以直接用命令行：
 
-Supported operations: `+`, `-`, `*`, `/`, `%` (floating-point remainder), `^` (exponentiation), unary `+` and `-`, and parentheses. Decimal numbers and scientific notation are supported. Whitespace is allowed between tokens. Multiplication and division have equal precedence with `%`, and are left-associative. Exponentiation is right-associative and takes precedence over unary signs (`-2^2` is `-4`, while `(-2)^2` is `4`). Results are formatted to two decimal places.
+```bash
+./build/calc '6%4' '2^3^2'
+```
 
-Invalid expressions, division or remainder by zero, and non-finite results print `invalid input!`. For command-line expressions, a failure sets the process exit code to 1; the remaining arguments are still evaluated. In interactive mode, a failure prints an error and the prompt continues.
+## 修改了什么？
 
-## Tests
+1. **修好负数**：如 `-3+5`、`2*-3`。
+2. **修好运算顺序**：先乘除、后加减；`2^3^2` 等于 512。
+3. **修好 `%`**：`6%4` 等于 2，而不是算除法。
+4. **处理错误算式**：例如 `1/0`、`1++`、括号缺失会显示 `invalid input!`。
+5. **不用不安全的字符数组输入**：改用 `string`，避免输入过长导致数组越界。
+6. **命令行计算完成就结束**，不再自动进入交互模式。
 
-```sh
+## 如何测试？
+
+```bash
 make test
 ```
 
-This runs regression tests using the Python 3 standard library (no extra dependencies).
+需要在电脑上安装 `g++` 和 `make`。`tests/test.sh` 中有可以直接阅读的测试算式。
+
+**代码中的重点**：`find()` 负责挑出要最后计算的运算符；`build()` 把算式分成左右两部分继续计算；当两边没有运算符时，`number()` 把数字转换成小数。可以自己逐步跟踪 `(1+2)*3` 的执行过程。

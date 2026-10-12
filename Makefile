@@ -1,6 +1,5 @@
 CXX := g++
-CXXFLAGS := -std=c++11 -Wall -Wextra -Wpedantic -O2
-
+CXXFLAGS := -std=c++11 -Wall -Wextra -O2
 SRCS := calc.cpp logic.cpp
 OBJS := $(SRCS:.cpp=.o)
 TARGET := build/calc
@@ -17,7 +16,7 @@ $(OBJS): calc.hpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 test: $(TARGET)
-	python3 tests/test_calc.py
+	sh tests/test.sh
 
 clean:
 	rm -f $(OBJS)

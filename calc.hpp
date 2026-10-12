@@ -3,7 +3,12 @@
 
 #include <string>
 
-// Evaluate an arithmetic expression, or throw std::invalid_argument for bad input.
-double evaluate(const std::string& expression);
+extern std::string s;      // 当前计算的算式
+extern bool hasError;      // 算式是否有错误
+extern int calls;          // 递归调用次数
+
+double number(int l, int r);
+int find(int l, int r);
+double build(int l, int r);
 
 #endif

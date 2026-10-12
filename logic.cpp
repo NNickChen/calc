@@ -1,186 +1,81 @@
 #include "calc.hpp"
-
-#include <cctype>
 #include <cmath>
-#include <cstdlib>
-#include <stdexcept>
-#include <string>
+#include <cctype>
 
-namespace {
+using namespace std;
 
-class Parser {
-public:
-    explicit Parser(const std::string& expression)
-        : expression_(expression), position_(0), nestingDepth_(0) {}
-
-    double parse() {
-        const double result = expression();
-        skipWhitespace();
-        if (position_ != expression_.size()) {
-            throw std::invalid_argument("unexpected characters");
-        }
-        return result == 0.0 ? 0.0 : result;
-    }
-
-private:
-    const std::string& expression_;
-    std::size_t position_;
-    std::size_t nestingDepth_;
-
-    // Bound recursive input to avoid a stack overflow on deeply nested expressions.
-    class NestingGuard {
-    public:
-        explicit NestingGuard(std::size_t& depth) : depth_(depth) {
-            if (depth_ >= 256) {
-                throw std::invalid_argument("expression nested too deeply");
-            }
-            ++depth_;
-        }
-        ~NestingGuard() { --depth_; }
-
-    private:
-        std::size_t& depth_;
-    };
-
-    void skipWhitespace() {
-        while (position_ < expression_.size() &&
-               std::isspace(static_cast<unsigned char>(expression_[position_]))) {
-            ++position_;
+// 将 s[l..r] 中的数字变成 double。
+double number(int l, int r) {
+    if (l > r) { hasError = true; return 0; }
+    double value = 0;
+    double place = 0.1;
+    bool dot = false, digit = false;
+    for (int i = l; i <= r; i++) {
+        if (s[i] == '.') {
+            if (dot) { hasError = true; return 0; }
+            dot = true;
+        } else if (isdigit((unsigned char)s[i])) {
+            digit = true;
+            if (!dot) value = value * 10 + (s[i] - '0');
+            else { value += (s[i] - '0') * place; place /= 10; }
+        } else {
+            hasError = true;
+            return 0;
         }
     }
+    if (!digit || !isfinite(value)) hasError = true;
+    return value;
+}
 
-    bool consume(char symbol) {
-        skipWhitespace();
-        if (position_ < expression_.size() && expression_[position_] == symbol) {
-            ++position_;
-            return true;
-        }
-        return false;
-    }
-
-    static double finite(double value) {
-        if (!std::isfinite(value)) {
-            throw std::invalid_argument("result is not finite");
-        }
-        return value;
-    }
-
-    double expression() {
-        NestingGuard nesting(nestingDepth_);
-        double value = term();
-        while (true) {
-            if (consume('+')) {
-                value = finite(value + term());
-            } else if (consume('-')) {
-                value = finite(value - term());
-            } else {
-                return value;
-            }
+// 找到当前括号外优先级最低的运算符。
+// 加减、乘除取模选最右边（从左到右算），乘方选最左边（从右到左算）。
+int find(int l, int r) {
+    int brackets = 0, plusMinus = -1, multiply = -1, power = -1;
+    for (int i = l; i <= r; i++) {
+        char c = s[i];
+        if (c == '(') { brackets++; continue; }
+        if (c == ')') { brackets--; continue; }
+        if (brackets != 0) continue;
+        if (c == '+' || c == '-') {
+            // 开头或运算符后面的 +、- 是正负号，不是加减法。
+            if (i == l || s[i-1] == '+' || s[i-1] == '-' ||
+                s[i-1] == '*' || s[i-1] == '/' || s[i-1] == '%' ||
+                s[i-1] == '^' || s[i-1] == '(') continue;
+            plusMinus = i;
+        } else if (c == '*' || c == '/' || c == '%') {
+            multiply = i;
+        } else if (c == '^' && power == -1) {
+            power = i;
         }
     }
+    if (plusMinus != -1) return plusMinus;
+    if (multiply != -1) return multiply;
+    return power;
+}
 
-    double term() {
-        double value = unary();
-        while (true) {
-            if (consume('*')) {
-                value = finite(value * unary());
-            } else if (consume('/')) {
-                const double divisor = unary();
-                if (divisor == 0.0) {
-                    throw std::invalid_argument("division by zero");
-                }
-                value = finite(value / divisor);
-            } else if (consume('%')) {
-                const double divisor = unary();
-                if (divisor == 0.0) {
-                    throw std::invalid_argument("modulo by zero");
-                }
-                value = finite(std::fmod(value, divisor));
-            } else {
-                return value;
-            }
-        }
+// 递归计算 s[l..r]。
+double build(int l, int r) {
+    // 限制过长算式，防止过多递归导致程序崩溃。
+    if (++calls > 1000 || l > r) { hasError = true; return 0; }
+
+    int p = find(l, r);
+    if (p != -1 && s[p] != '^') {
+        double a = build(l, p - 1);
+        double b = build(p + 1, r);
+        if (s[p] == '+') return a + b;
+        if (s[p] == '-') return a - b;
+        if (s[p] == '*') return a * b;
+        if (b == 0) { hasError = true; return 0; }
+        if (s[p] == '/') return a / b;
+        return fmod(a, b); // %：取余数
     }
 
-    double unary() {
-        NestingGuard nesting(nestingDepth_);
-        if (consume('+')) {
-            return unary();
-        }
-        if (consume('-')) {
-            return finite(-unary());
-        }
-        return power();
-    }
+    // 负号的优先级低于乘方：-2^2 = -(2^2)
+    if (s[l] == '-') return -build(l + 1, r);
+    if (s[l] == '+') return build(l + 1, r);
+    if (p != -1) return pow(build(l, p - 1), build(p + 1, r));
 
-    double power() {
-        const double base = primary();
-        // Parsing the exponent as unary permits 2^-3 and makes ^ right-associative.
-        if (consume('^')) {
-            return finite(std::pow(base, unary()));
-        }
-        return base;
-    }
-
-    double primary() {
-        if (consume('(')) {
-            const double value = expression();
-            if (!consume(')')) {
-                throw std::invalid_argument("missing closing parenthesis");
-            }
-            return value;
-        }
-        return number();
-    }
-
-    double number() {
-        skipWhitespace();
-        const std::size_t start = position_;
-        bool hasDigit = false;
-        while (position_ < expression_.size() &&
-               std::isdigit(static_cast<unsigned char>(expression_[position_]))) {
-            hasDigit = true;
-            ++position_;
-        }
-        if (position_ < expression_.size() && expression_[position_] == '.') {
-            ++position_;
-            while (position_ < expression_.size() &&
-                   std::isdigit(static_cast<unsigned char>(expression_[position_]))) {
-                hasDigit = true;
-                ++position_;
-            }
-        }
-        if (!hasDigit) {
-            throw std::invalid_argument("number expected");
-        }
-        if (position_ < expression_.size() &&
-            (expression_[position_] == 'e' || expression_[position_] == 'E')) {
-            ++position_;
-            if (position_ < expression_.size() &&
-                (expression_[position_] == '+' || expression_[position_] == '-')) {
-                ++position_;
-            }
-            const std::size_t exponentStart = position_;
-            while (position_ < expression_.size() &&
-                   std::isdigit(static_cast<unsigned char>(expression_[position_]))) {
-                ++position_;
-            }
-            if (position_ == exponentStart) {
-                throw std::invalid_argument("invalid exponent");
-            }
-        }
-        const std::string token = expression_.substr(start, position_ - start);
-        char* end = nullptr;
-        const double value = std::strtod(token.c_str(), &end);
-        if (end != token.c_str() + token.size()) {
-            throw std::invalid_argument("invalid number");
-        }
-        return finite(value);
-    }
-};
-
-} // namespace
-
-double evaluate(const std::string& expression) {
-    return Parser(expression).parse();
+    // 没有运算符时，可能是括号，也可能是一个数字。
+    if (s[l] == '(' && s[r] == ')') return build(l + 1, r - 1);
+    return number(l, r);
 }
